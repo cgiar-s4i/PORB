@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S4I PORB 2026 — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: #e0ddd6;
+    --border2: #ccc9c0;
+    --text: #1a1a18;
+    --text2: #666660;
+    --text3: #999992;
+    --c0: #185FA5; --c0l: #e6f1fb;
+    --c1: #1D9E75; --c1l: #e1f5ee;
+    --c2: #BA7517; --c2l: #faeeda;
+    --c3: #A32D2D; --c3l: #fcebeb;
+    --c4: #534AB7; --c4l: #eeedfe;
+    --c5: #3B6D11; --c5l: #eaf3de;
+    --accent: #185FA5;
+    --radius: 10px;
+    --ff: 'IBM Plex Sans', system-ui, sans-serif;
+    --fm: 'IBM Plex Mono', monospace;
+  }
+
+  [data-theme="dark"] {
+    --bg: #111110;
+    --surface: #1c1c1a;
+    --surface2: #242422;
+    --border: #2e2e2b;
+    --border2: #404040;
+    --text: #e8e6e1;
+    --text2: #9a9890;
+    --text3: #666660;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--ff); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* SIDEBAR */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; height: 100vh; overflow-y: auto; z-index: 100;
+  }
+  .logo { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+  .logo-title { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -.3px; }
+  .logo-sub { font-size: 11px; color: var(--text3); font-family: var(--fm); margin-top: 2px; }
+  .logo-badge { display: inline-block; background: var(--c1l); color: var(--c1); font-size: 10px; font-family: var(--fm); padding: 2px 7px; border-radius: 10px; margin-top: 6px; }
+  .nav { padding: 8px; flex: 1; }
+  .nav-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); padding: 12px 8px 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 7px; cursor: pointer;
+    font-size: 13px; color: var(--text2); transition: all .12s;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--c0l); color: var(--c0); font-weight: 500; }
+  .nav-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); }
+  .theme-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 0; color: var(--text3); font-size: 12px; background: none; border: none; font-family: var(--ff); }
+  .theme-btn:hover { color: var(--text); }
+
+  /* MAIN */
+  .main { margin-left: 220px; flex: 1; padding: 28px 32px; max-width: 1100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 24px; font-weight: 600; color: var(--text); letter-spacing: -.4px; }
+  .page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media(max-width:900px){ .grid-4{grid-template-columns:repeat(2,1fr)} .grid-3{grid-template-columns:1fr 1fr} }
+  @media(max-width:640px){ .grid-2,.grid-3,.grid-4{grid-template-columns:1fr} .main{padding:16px} .sidebar{width:200px} }
+
+  /* KPI TILES */
+  .kpi-tile { background: var(--surface2); border-radius: 8px; padding: 14px 16px; }
+  .kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+  .kpi-value { font-size: 26px; font-weight: 600; font-family: var(--fm); color: var(--text); line-height: 1; }
+  .kpi-note { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* BARS */
+  .bar-group { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar-label { font-size: 11px; color: var(--text2); width: 64px; flex-shrink: 0; font-family: var(--fm); }
+  .bar-track { flex: 1; height: 10px; background: var(--surface2); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; transition: width .5s ease; }
+  .bar-value { font-size: 11px; font-family: var(--fm); color: var(--text); width: 62px; text-align: right; flex-shrink: 0; }
+
+  /* GANTT */
+  .gantt-wrap { overflow-x: auto; }
+  .gantt-grid { display: grid; grid-template-columns: 160px repeat(12, 1fr); gap: 2px; min-width: 700px; }
+  .gantt-hdr-cell { font-size: 10px; font-family: var(--fm); color: var(--text3); text-align: center; padding: 2px 0; }
+  .gantt-row-label { font-size: 11px; color: var(--text2); padding-right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; }
+  .gantt-cell { height: 18px; border-radius: 3px; background: var(--surface2); }
+  .gantt-filled { height: 18px; border-radius: 3px; }
+  .gantt-today { background: rgba(24,95,165,.1) !important; border-top: 2px solid var(--c0); }
+  .gantt-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); padding: 10px 0 3px; grid-column: 1 / -1; }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text3); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.4; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+
+  /* BADGES */
+  .badge { display: inline-block; font-size: 10px; font-family: var(--fm); padding: 1px 7px; border-radius: 4px; white-space: nowrap; }
+  .b0 { background: var(--c0l); color: var(--c0); }
+  .b1 { background: var(--c1l); color: var(--c1); }
+  .b2 { background: var(--c2l); color: var(--c2); }
+  .b3 { background: var(--c3l); color: var(--c3); }
+  .b4 { background: var(--c4l); color: var(--c4); }
+  .b5 { background: var(--c5l); color: var(--c5); }
+
+  /* TABS */
+  .tab-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 5px 13px; border-radius: 18px; font-size: 12px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    font-family: var(--ff); transition: all .12s;
+  }
+  .tab-btn:hover { background: var(--surface2); }
+  .tab-btn.active { font-weight: 500; }
+
+  /* PROGRESS */
+  .progress-row { margin-bottom: 12px; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+  .progress-lbl { color: var(--text); }
+  .progress-val { color: var(--text2); font-family: var(--fm); }
+  .progress-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+
+  /* IOC LIST */
+  .ioc-item { padding: 9px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+  .ioc-item:last-child { border-bottom: none; }
+  .ioc-badge { flex-shrink: 0; margin-top: 1px; }
+  .ioc-body {}
+  .ioc-title { font-size: 12px; color: var(--text); line-height: 1.4; }
+  .ioc-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* FILTER BAR */
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .filter-input {
+    padding: 6px 11px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-size: 12px; font-family: var(--ff);
+    outline: none; flex: 1; min-width: 160px; max-width: 260px;
+  }
+  .filter-input:focus { border-color: var(--accent); }
+  .filter-select {
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-size: 12px; font-family: var(--ff);
+    cursor: pointer; outline: none;
+  }
+
+  /* MILESTONE */
+  .milestone-item { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .milestone-item:last-child { border-bottom: none; }
+  .milestone-month { flex: 0 0 36px; font-family: var(--fm); font-size: 10px; color: var(--text3); padding-top: 1px; }
+  .milestone-text { flex: 1; color: var(--text); }
+  .milestone-aow { flex: 0 0 40px; text-align: right; font-family: var(--fm); font-size: 10px; }
+
+  /* CHART CONTAINERS */
+  .chart-wrap { position: relative; }
+
+  /* SECTION DIVIDER */
+  .sec-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); margin: 20px 0 10px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* TODAY BADGE */
+  .today-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--c0l); color: var(--c0); font-size: 11px;
+    font-family: var(--fm); padding: 3px 10px; border-radius: 10px; margin-left: 10px;
+  }
+  .today-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c0); }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-title">S4I PORB</div>
+    <div class="logo-sub">2026 · Replan · USD</div>
+    <div class="logo-badge">Week 17 · Apr 27</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" onclick="showPage('overview',this)">
+      <span class="nav-dot" style="background:#185FA5"></span> Dashboard
+    </button>
+    <button class="nav-item" onclick="showPage('budget',this)">
+      <span class="nav-dot" style="background:#1D9E75"></span> Budget Explorer
+    </button>
+    <div class="nav-section">Planning</div>
+    <button class="nav-item" onclick="showPage('gantt',this)">
+      <span class="nav-dot" style="background:#BA7517"></span> Gantt Timeline
+    </button>
+    <button class="nav-item" onclick="showPage('melia',this)">
+      <span class="nav-dot" style="background:#A32D2D"></span> MELIA Tracker
+    </button>
+    <div class="nav-section">Results</div>
+    <button class="nav-item" onclick="showPage('kpi',this)">
+      <span class="nav-dot" style="background:#534AB7"></span> KPI Panels
+    </button>
+    <button class="nav-item" onclick="showPage('toc',this)">
+      <span class="nav-dot" style="background:#3B6D11"></span> Results Framework
+    </button>
+    <div class="nav-section">Delivery</div>
+    <button class="nav-item" onclick="showPage('pods',this)">
+      <span class="nav-dot" style="background:#888"></span> PoD Registry
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="toggleTheme()">
+      <span id="theme-icon">☀</span> Toggle theme
+    </button>
+    <div style="margin-top:6px">CGIAR S4I · $19.6M budget</div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+<!-- ============ OVERVIEW ============ -->
+<div id="pg-overview" class="page active">
+  <div class="page-header">
+    <div style="display:flex;align-items:center">
+      <div class="page-title">Programme Overview</div>
+      <span class="today-tag"><span class="today-dot"></span>Apr 27, 2026</span>
+    </div>
+    <div class="page-sub">S4I Scaling for Impact · PORB Replan · Delivery deadline Dec 31, 2026</div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px">
+    <div class="kpi-tile"><div class="kpi-label">Total Budget</div><div class="kpi-value">$19.6M</div><div class="kpi-note">Replan envelope</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Core Activities</div><div class="kpi-value">$15.1M</div><div class="kpi-note">77% of total</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Partner Budget</div><div class="kpi-value">$2.0M</div><div class="kpi-note">10% of total</div></div>
+    <div class="kpi-tile"><div class="kpi-label">MELIA</div><div class="kpi-value">$748K</div><div class="kpi-note">AoW2 + AoW5</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Areas of Work</div><div class="kpi-value">AoW 0–5</div><div class="kpi-note">6 programmatic areas</div></div>
+    <div class="kpi-tile"><div class="kpi-label">CGIAR Centers</div><div class="kpi-value">13</div><div class="kpi-note">Active partners</div></div>
+    <div class="kpi-tile"><div class="kpi-label">2030 Outcomes</div><div class="kpi-value">5</div><div class="kpi-note">Impact area goals</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Countries</div><div class="kpi-value">30+</div><div class="kpi-note">Implementation</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Budget by area of work</div>
+      <div id="aow-bars-ov"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">AoW composition</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="donut-ov" role="img" aria-label="Donut chart of S4I budget by AoW">AoW0–AoW5 budget breakdown</canvas></div>
+      <div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2)"></div>
+    </div>
+  </div>
+
+  <div class="sec-label">Center allocation overview</div>
+  <div class="card">
+    <div class="card-title">Total budget by CGIAR center (USD)</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="center-bar-ov" role="img" aria-label="Horizontal bar chart of center budgets">Center budget allocation chart</canvas></div>
+  </div>
+
+  <div class="sec-label">Programme progress (week 17 of 52)</div>
+  <div class="card">
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">Year elapsed</span><span class="progress-val">33%</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:33%;background:var(--c0)"></div></div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">AoW0 — Programme Management</span><span class="progress-val">On track</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:40%;background:var(--c1)"></div></div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">AoW1 — Demand & Priorities</span><span class="progress-val">In progress</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:28%;background:var(--c2)"></div></div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">AoW2 — Climate & Market</span><span class="progress-val">Active delivery</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:30%;background:var(--c3)"></div></div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">AoW3 — Enabling Environments</span><span class="progress-val">On track</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:25%;background:var(--c4)"></div></div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">AoW4 — Finance & Investment</span><span class="progress-val">On track</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:30%;background:var(--c5)"></div></div>
+    </div>
+    <div class="progress-row" style="margin-bottom:0">
+      <div class="progress-header"><span class="progress-lbl">AoW5 — Scaling Science</span><span class="progress-val">In progress</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:22%;background:var(--c0)"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BUDGET EXPLORER ============ -->
+<div id="pg-budget" class="page">
+  <div class="page-header">
+    <div class="page-title">Budget Explorer</div>
+    <div class="page-sub">Click any center to see full breakdown by AoW</div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:20px" id="center-cards"></div>
+  <div id="center-detail" style="display:none;margin-bottom:20px"></div>
+
+  <div class="card">
+    <div class="card-title">Budget composition by type across AoWs</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="stacked-budget" role="img" aria-label="Stacked bar chart of Core, Partner, MELIA budget by AoW">Budget composition stacked chart</canvas></div>
+    <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--text2)">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#185FA5;display:inline-block"></span>Core</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Partner</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#BA7517;display:inline-block"></span>MELIA</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GANTT ============ -->
+<div id="pg-gantt" class="page">
+  <div class="page-header">
+    <div class="page-title">Gantt Timeline 2026</div>
+    <div class="page-sub">Jan–Dec · blue column = today (Apr 27, week 17)</div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Delivery timeline — all areas of work</div>
+    <div class="gantt-wrap">
+      <div class="gantt-grid" id="gantt-grid"></div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--text2)">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c0);display:inline-block"></span>AoW0</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c1);display:inline-block"></span>AoW1</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c2);display:inline-block"></span>AoW2</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c3);display:inline-block"></span>AoW3</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c4);display:inline-block"></span>AoW4</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;border-radius:2px;background:var(--c5);display:inline-block"></span>AoW5</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Key milestones</div>
+      <div id="milestones-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Quarterly budget phasing</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="phase-chart" role="img" aria-label="Quarterly budget phasing stacked bar">Quarterly phasing</canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MELIA ============ -->
+<div id="pg-melia" class="page">
+  <div class="page-header">
+    <div class="page-title">MELIA Tracker</div>
+    <div class="page-sub">Monitoring, Evaluation, Learning & Impact Assessment — $748K total</div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px">
+    <div class="kpi-tile"><div class="kpi-label">MELIA (AoW5)</div><div class="kpi-value">$498K</div><div class="kpi-note">Primary MELIA area</div></div>
+    <div class="kpi-tile"><div class="kpi-label">MELIA (AoW2)</div><div class="kpi-value">$250K</div><div class="kpi-note">Dynamic learning</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Active PoDs</div><div class="kpi-value">9</div><div class="kpi-note">MELIA activities</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Learning Plans</div><div class="kpi-value">19</div><div class="kpi-note">Target by Q2 2026</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">MELIA PoD registry</div>
+    <table class="data-table" id="melia-table">
+      <thead><tr><th>PoD ID</th><th>Lead</th><th>Activity</th><th>KPI Target</th><th>Countries</th><th>Budget</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">MELIA integration by AoW</div>
+    <div id="melia-coverage"></div>
+  </div>
+</div>
+
+<!-- ============ KPI PANELS ============ -->
+<div id="pg-kpi" class="page">
+  <div class="page-header">
+    <div class="page-title">AoW KPI Panels</div>
+    <div class="page-sub">Intermediate outcomes, HLOs, and 2026 targets per area</div>
+  </div>
+  <div class="tab-row" id="kpi-tabs"></div>
+  <div id="kpi-content"></div>
+</div>
+
+<!-- ============ RESULTS FRAMEWORK ============ -->
+<div id="pg-toc" class="page">
+  <div class="page-header">
+    <div class="page-title">Results Framework</div>
+    <div class="page-sub">ToC chain: SDGs → Impact Areas → 2030 Outcomes → I-OCs → HLOs</div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px">
+    <div class="kpi-tile"><div class="kpi-label">2030 outcomes</div><div class="kpi-value">5</div></div>
+    <div class="kpi-tile"><div class="kpi-label">Intermediate OCs</div><div class="kpi-value">14</div></div>
+    <div class="kpi-tile"><div class="kpi-label">HLOs tracked</div><div class="kpi-value">16</div></div>
+    <div class="kpi-tile"><div class="kpi-label">SDGs aligned</div><div class="kpi-value">6+</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">2030 outcome targets (cumulative)</div>
+    <div id="outcome-targets"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">I-OC chain by area of work</div>
+    <div id="ioc-chain"></div>
+  </div>
+</div>
+
+<!-- ============ POD REGISTRY ============ -->
+<div id="pg-pods" class="page">
+  <div class="page-header">
+    <div class="page-title">PoD Registry</div>
+    <div class="page-sub">Packages of Deliverables — searchable across all AoWs</div>
+  </div>
+
+  <div class="filter-bar">
+    <input class="filter-input" id="pod-search" placeholder="Search PoDs, centers, activities..." oninput="filterPoDs()">
+    <select class="filter-select" id="pod-aow" onchange="filterPoDs()">
+      <option value="">All AoWs</option>
+      <option>AoW1</option><option>AoW2</option><option>AoW3</option><option>AoW4</option><option>AoW5</option>
+    </select>
+    <select class="filter-select" id="pod-center" onchange="filterPoDs()">
+      <option value="">All Centers</option>
+      <option>CIAT</option><option>CIMMYT</option><option>CIP</option><option>ICARDA</option><option>ICRISAT</option>
+      <option>IFPRI</option><option>IITA</option><option>ILRI</option><option>IRRI</option><option>IWMI</option><option>WorldFish</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <table class="data-table" id="pod-table">
+      <thead><tr><th>PoD ID</th><th>AoW</th><th>Center</th><th>HLO</th><th>Activity / KPI</th><th>Countries</th><th>Budget</th></tr></thead>
+      <tbody id="pod-tbody"></tbody>
+    </table>
+    <div id="pod-count" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:right"></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ========== DATA ==========
+const aowColors = ['#185FA5','#1D9E75','#BA7517','#A32D2D','#534AB7','#3B6D11'];
+const aowNames = ['AoW0','AoW1','AoW2','AoW3','AoW4','AoW5'];
+const fmt = v => v >= 1e6 ? '$'+(v/1e6).toFixed(2)+'M' : v >= 1e3 ? '$'+Math.round(v/1e3)+'K' : '$'+Math.round(v);
+
+const aowData = [
+  {name:'AoW0',label:'Programme Management', total:1987645, core:1987645, partner:0, melia:0},
+  {name:'AoW1',label:'Demand & Priorities',  total:1863731, core:1754353, partner:109378, melia:0},
+  {name:'AoW2',label:'Climate & Market',     total:7526565, core:6304278, partner:972287, melia:250000},
+  {name:'AoW3',label:'Enabling Environments',total:2529401, core:2249539, partner:279862, melia:0},
+  {name:'AoW4',label:'Finance & Investment', total:3777407, core:3460257, partner:317150, melia:0},
+  {name:'AoW5',label:'Scaling Science',      total:2203631, core:1037631, partner:393071, melia:497929},
+];
+
+const centerData = [
+  {name:'IWMI',      aow:[162623,848146,496849,1016893,228258,176000], total:2928769},
+  {name:'CIAT',      aow:[349421,240000,1486803,270008,105977,287992], total:2740201},
+  {name:'CIMMYT',    aow:[20313,330000,1814971,0,105977,0],            total:2271261},
+  {name:'AfricaRice',aow:[6000,80000,266169,0,643693,0],              total:995862},
+  {name:'ILRI',      aow:[128572,0,301658,0,542225,985957],           total:1958412},
+  {name:'IITA',      aow:[90185,205585,0,60000,1355478,15000],        total:1726248},
+  {name:'IFPRI',     aow:[6000,60000,851741,275000,138585,260000],    total:1591326},
+  {name:'IRRI',      aow:[174711,100000,585572,405000,369988,0],      total:1635271},
+  {name:'ICARDA',    aow:[6000,0,709784,175000,139401,0],             total:1030185},
+  {name:'CIP',       aow:[6000,0,443615,50000,50000,374462],          total:924077},
+  {name:'ICRISAT',   aow:[0,0,0,0,0,104220],                          total:104220},
+  {name:'WorldFish', aow:[6000,0,319403,240000,0,0],                  total:565403},
+  {name:'Bioversity',aow:[0,0,0,37500,97825,0],                       total:135325},
+];
+
+const ganttRows = [
+  // [label, aowIdx, startMonth(0-based), endMonth(0-based)]
+  ['Director & PMU setup',0,0,3],['AoW Lead onboarding',0,0,2],['Comms plan rollout',0,1,11],
+  ['Stakeholder demand intel',1,1,8],['CGIAR advisory committees',1,2,10],['Country strategies',1,3,11],
+  ['Digital advisory flagships',2,0,11],['Climate-smart water mgmt',2,1,11],['Inclusive market systems',2,2,11],
+  ['Dietary diversification',2,3,10],['EE diagnostics (AoW3)',3,1,8],['TA delivery (AoW3)',3,2,10],
+  ['MSP coalitions',3,3,11],['IFI innovation embedding',4,0,11],['Private sector partnerships',4,1,10],
+  ['Scaling strategy support',4,2,11],['CAPSHA training hubs',5,1,9],['Nairobi Scaling Hub',5,0,11],
+  ['South Asia Hub',5,1,11],['Scaling Week 2026',5,8,9],['Dynamic Learning Strategy',5,0,11],
+  ['IPSR analytics (ILRI)',5,0,11],
+];
+
+const milestones = [
+  {mon:'Jan',text:'PMU & AoW Leads transition completed',aow:'AoW0',ci:0},
+  {mon:'Q1',text:'Country advisory committees formed',aow:'AoW1',ci:1},
+  {mon:'Apr',text:'PORB replan finalized ← TODAY',aow:'All',ci:-1},
+  {mon:'Q2',text:'19 DLS learning plans completed',aow:'AoW5',ci:5},
+  {mon:'Jun',text:'IFI integration agreements signed',aow:'AoW4',ci:4},
+  {mon:'Q3',text:'CAPSHA 200 individuals trained',aow:'AoW5',ci:5},
+  {mon:'Sep',text:'Scaling Week 2026 — Nairobi Hub',aow:'AoW5',ci:5},
+  {mon:'Q3',text:'30+ partners with scaling tools',aow:'AoW2',ci:2},
+  {mon:'Q4',text:'Country strategies disseminated',aow:'AoW1',ci:1},
+  {mon:'Dec',text:'ATR submission deadline',aow:'All',ci:-1},
+];
+
+const meliaPoDs = [
+  {id:'A5ABC-CC-1',center:'CIAT',activity:'MELIA system — Outcome Impact Case Reports',target:'5 reports',countries:'Colombia',budget:95992},
+  {id:'A5P8.3',center:'CIAT',activity:'Dynamic Learning Strategy Framework',target:'1 strategy',countries:'Global',budget:88000},
+  {id:'A5P8.4',center:'CIP',activity:'19 dynamic learning plans for AoW2 tracks',target:'19 plans',countries:'Global',budget:150000},
+  {id:'A5P8.5',center:'CIP',activity:'AI phone survey system for KPI collection',target:'5 tracks',countries:'Global',budget:45000},
+  {id:'A5P8.6',center:'CIP',activity:'KPI data dashboards from phone surveys',target:'1 dashboard',countries:'Global',budget:50000},
+  {id:'A5P9.1',center:'CIP',activity:'FarmerChat AI advisory evaluation',target:'1 report',countries:'Kenya',budget:75000},
+  {id:'A5P10.1',center:'IFPRI',activity:'A/B test evaluation of FarmerChat',target:'1 report',countries:'Kenya',budget:230000},
+  {id:'A5P8.7',center:'IFPRI',activity:'Causal impact evaluation toolkit',target:'1 toolkit',countries:'Global',budget:30000},
+  {id:'A5P8.8',center:'IWMI',activity:'Adaptive MELIA toolkit — AoW2 piloting',target:'1 toolkit',countries:'Nepal/Ethiopia',budget:28000},
+];
+
+const meliaCoverage = [
+  {aow:'AoW0',has:false,note:'No dedicated MELIA — PMU oversight only'},
+  {aow:'AoW1',has:true,note:'KII-based annual reporting on stakeholder demand'},
+  {aow:'AoW2',has:true,note:'$250K dedicated MELIA; Dynamic Learning Strategy + AI surveys'},
+  {aow:'AoW3',has:false,note:'MELIA integrated into TA delivery; no separate budget line'},
+  {aow:'AoW4',has:true,note:'SSSF reporting logs + investment strategy documents'},
+  {aow:'AoW5',has:true,note:'$498K; 9 active PoDs — toolkits, impact evaluations, dashboards'},
+];
+
+const aowKPIs = [
+  {name:'AoW0',ci:0,iocs:[
+    {code:'Output',text:'Director + AoW Leads operational',target:'6 AoW Leads by Q1',type:'Output'},
+    {code:'Output',text:'Communications plan implemented (incl. 50% FTE Comms)',target:'1 plan full year',type:'Output'},
+    {code:'Process',text:'MELIA focal points active across hosting centers',target:'2 centers',type:'Process'},
+    {code:'Process',text:'Programme Coordinator support through April',target:'Q1 transition',type:'Process'},
+  ]},
+  {name:'AoW1',ci:1,iocs:[
+    {code:'I-OC 1.1',text:'CGIAR Programs accessing stakeholder demand information',target:'2 in 2026 → 10 by 2030',type:'Outcome'},
+    {code:'I-OC 1.2',text:'Programs documenting adaptive management adaptations',target:'4 in 2026',type:'Outcome'},
+    {code:'I-OC 1.3',text:'Programs referencing country demands in PORB',target:'4 in 2026',type:'Outcome'},
+    {code:'HLO 1.1.1',text:'Integrated demand intelligence system operational',target:'2 outputs by 2026',type:'Output'},
+    {code:'HLO 1.1.2',text:'Annual data feedback to Programs/Accelerators',target:'1 by 2026',type:'Output'},
+    {code:'HLO 1.1.3',text:'Country strategies co-developed',target:'6 strategies by 2026',type:'Output'},
+  ]},
+  {name:'AoW2',ci:2,iocs:[
+    {code:'I-OC 2.1',text:'Dev partners with plans to scale climate-smart innovations',target:'30 in 2026 → 218 cum.',type:'Outcome'},
+    {code:'I-OC 2.2',text:'Market actors adopting business models from CGIAR',target:'5 in 2026 → 110 cum.',type:'Outcome'},
+    {code:'I-OC 2.3',text:'Policymakers implementing market/behavior change innovations',target:'10 in 2026',type:'Outcome'},
+    {code:'HLO 2.2.1',text:'Climate-smart innovations co-developed',target:'120 stakeholders by 2026',type:'Output'},
+    {code:'HLO 2.2.2',text:'Scaling pathways for input provision systems',target:'12 pathways by 2026',type:'Output'},
+    {code:'HLO 2.2.3',text:'Scaling pathways for dietary diversification',target:'8 pathways by 2026',type:'Output'},
+    {code:'HLO 2.2.4',text:'Stage-gating & lessons synthesis',target:'4 pathways by 2026',type:'Output'},
+  ]},
+  {name:'AoW3',ci:3,iocs:[
+    {code:'I-OC 3.1',text:'Govt institutions using CGIAR tools for enabling environment',target:'10 in 2026 → 50 cum.',type:'Outcome'},
+    {code:'I-OC 3.2',text:'Institutions accessing CGIAR TA on policy/market strategies',target:'150 in 2026',type:'Outcome'},
+    {code:'I-OC 3.3',text:'Organizations in multistakeholder networks for scaling',target:'150,000 in 2026',type:'Outcome'},
+    {code:'HLO 3.3.1',text:'EE diagnostic tools & action plans',target:'10 by 2026',type:'Output'},
+    {code:'HLO 3.3.2',text:'TA & institutional support delivered',target:'4 by 2026',type:'Output'},
+    {code:'HLO 3.3.3',text:'Multistakeholder platforms established',target:'10 by 2026',type:'Output'},
+  ]},
+  {name:'AoW4',ci:4,iocs:[
+    {code:'I-OC 4.1',text:'Innovations embedded in IFI/govt project designs',target:'4 in 2026 → 100 cum.',type:'Outcome'},
+    {code:'I-OC 4.2',text:'Private sector innovations embedded',target:'8 in 2026',type:'Outcome'},
+    {code:'I-OC 4.3',text:'Programs documenting responsible scaling approaches',target:'5 by 2026',type:'Outcome'},
+    {code:'HLO 4.4.1',text:'TA influencing IFI/govt financing',target:'$200M influenced by 2026',type:'Output'},
+    {code:'HLO 4.4.2',text:'Private sector partnerships for blended finance',target:'20 by 2026',type:'Output'},
+    {code:'HLO 4.4.3',text:'Scaling frameworks for Programs/bilateral projects',target:'5 by 2026',type:'Output'},
+  ]},
+  {name:'AoW5',ci:5,iocs:[
+    {code:'I-OC 5.1',text:'CGIAR Programs adopting scaling science approaches',target:'38 orgs in 2026',type:'Outcome'},
+    {code:'I-OC 5.2',text:'Dev partners adapting scaling based on dynamic learning',target:'3 by 2026',type:'Outcome'},
+    {code:'I-OC 5.3',text:'Programs using innovation portfolio mgmt tools',target:'8 in 2026',type:'Outcome'},
+    {code:'HLO 5.5.1',text:'Scaling science tools & south-south capacity sharing',target:'300 individuals 2026',type:'Output'},
+    {code:'HLO 5.5.2',text:'Evidence-based evaluations improving scaling pathways',target:'3 by 2026',type:'Output'},
+    {code:'HLO 5.5.3',text:'Innovation portfolio analytics & decision support',target:'20 institutions 2026',type:'Output'},
+  ]},
+];
+
+const outcomes2030 = [
+  {label:'Hectares under climate-smart management',val:10,unit:'M ha',max:10,color:'#1D9E75'},
+  {label:'Partner organizations applying innovation mgmt',val:100,unit:'orgs',max:150,color:'#185FA5'},
+  {label:'IFI/govt investment influenced',val:5,unit:'$B',max:5,color:'#534AB7'},
+  {label:'Policies & market interventions implemented',val:100,unit:'policies',max:120,color:'#A32D2D'},
+  {label:'People accessing agrifood solutions',val:20,unit:'M people',max:25,color:'#BA7517'},
+  {label:'Programs in adaptive mgmt countries',val:17,unit:'countries',max:20,color:'#3B6D11'},
+];
+
+const iocChain = [
+  {aow:'AoW1',ci:1,oc:'I-OC 1.1',text:'CGIAR alignment with regional/national priorities clarified'},
+  {aow:'AoW1',ci:1,oc:'I-OC 1.2',text:'Programs engage with adaptive management information'},
+  {aow:'AoW1',ci:1,oc:'I-OC 1.3',text:'Programs use stakeholder demand for iterative adaptation'},
+  {aow:'AoW2',ci:2,oc:'I-OC 2.1',text:'Dev partners support scaling of climate-smart innovations'},
+  {aow:'AoW2',ci:2,oc:'I-OC 2.2',text:'Market actors adopt business models from CGIAR co-development'},
+  {aow:'AoW2',ci:2,oc:'I-OC 2.3',text:'Policymakers implement market/behavior change innovations'},
+  {aow:'AoW3',ci:3,oc:'I-OC 3.1',text:'Govts use CGIAR tools to address enabling environment barriers'},
+  {aow:'AoW3',ci:3,oc:'I-OC 3.2',text:'Institutions demonstrate improved capacity for inclusive scaling'},
+  {aow:'AoW3',ci:3,oc:'I-OC 3.3',text:'MSP networks coordinate govt, private, civil society for scaling'},
+  {aow:'AoW4',ci:4,oc:'I-OC 4.1',text:'IFIs and govts integrate CGIAR innovations into investment decisions'},
+  {aow:'AoW4',ci:4,oc:'I-OC 4.2',text:'CGIAR researchers embed responsible scaling in ongoing projects'},
+  {aow:'AoW5',ci:5,oc:'I-OC 5.1',text:'CGIAR & donors integrate scaling science into org practices'},
+  {aow:'AoW5',ci:5,oc:'I-OC 5.2',text:'Scaling actors apply evidence-based recommendations'},
+  {aow:'AoW5',ci:5,oc:'I-OC 5.3',text:'CGIAR & partners use innovation portfolio management tools'},
+];
+
+const podData = [
+  {id:'A1P1.1',aow:'AoW1',center:'CIAT',hlo:'HLO 1.1.1',activity:'AKIS-DS: AKIS diagnostic methodology — Colombia',countries:'Colombia',budget:60000},
+  {id:'A1P11.1',aow:'AoW1',center:'CIMMYT',hlo:'HLO 1.1.2',activity:'Strategies for Stakeholder Uptake of Adaptive Learning Systems',countries:'Global',budget:100000},
+  {id:'A1P12.1',aow:'AoW1',center:'IWMI',hlo:'HLO 1.1.2',activity:'Pause and Reflect Workshops — 5 countries',countries:'BD,NG,ET,KE,IN',budget:60000},
+  {id:'A1P12.2',aow:'AoW1',center:'IWMI',hlo:'HLO 1.1.2',activity:'Success and Failure Story Series — adaptive mgmt',countries:'Global',budget:50000},
+  {id:'A1P17.1',aow:'AoW1',center:'IITA',hlo:'HLO 1.1.3',activity:'CGIAR Country Convener functions — Nigeria, Zambia, Ethiopia',countries:'NG,ZM,ET',budget:105585},
+  {id:'A1P19.1',aow:'AoW1',center:'IWMI',hlo:'HLO 1.1.3',activity:'CGIAR Country Strategic Framework — Nepal',countries:'Nepal',budget:30000},
+  {id:'A1P5.1',aow:'AoW1',center:'IITA',hlo:'HLO 1.1.1',activity:'CGIAR Demand Intelligence Portals — Nigeria & Zambia',countries:'NG,ZM',budget:100000},
+  {id:'A1P5.2',aow:'AoW1',center:'IRRI',hlo:'HLO 1.1.1',activity:'Global CGIAR-DID platform — integrated',countries:'Global',budget:100000},
+  {id:'A5ABC-CC-1',aow:'AoW5',center:'CIAT',hlo:'HLO 5.5.1',activity:'MELIA — Critical Capabilities & Outcome Impact Case Reports',countries:'Colombia',budget:95992},
+  {id:'A5ILRI-CC-2',aow:'AoW5',center:'ILRI',hlo:'HLO 5.5.3',activity:'IPSR — Innovation Package and Scaling Readiness system',countries:'Kenya',budget:250000},
+  {id:'A5P1.1',aow:'AoW5',center:'ILRI',hlo:'HLO 5.5.1',activity:'South-South University Partnership for Scaling',countries:'Multi',budget:45000},
+  {id:'A5P3.1',aow:'AoW5',center:'CIP',hlo:'HLO 5.5.1',activity:'CAPSHA Scaling Training & Certification Framework',countries:'Kenya',budget:54462},
+  {id:'A5P3.2',aow:'AoW5',center:'IWMI',hlo:'HLO 5.5.1',activity:'CAPSHA — 200 individuals trained & certified',countries:'ET,Nepal',budget:36000},
+  {id:'A5P5.1',aow:'AoW5',center:'ILRI',hlo:'HLO 5.5.1',activity:'Nairobi Scaling Hub — 4 regional convenings',countries:'Multi-Africa',budget:190000},
+  {id:'A5P6.1',aow:'AoW5',center:'IWMI',hlo:'HLO 5.5.1',activity:'South Asia Hub — partnerships & finance mobilization',countries:'BD,IN,Nepal',budget:25000},
+  {id:'A5P7.2',aow:'AoW5',center:'ILRI',hlo:'HLO 5.5.1',activity:'Scaling Week 2026 — Nairobi flagship convening',countries:'Multi',budget:90957},
+  {id:'A5P8.3',aow:'AoW5',center:'CIAT',hlo:'HLO 5.5.1',activity:'Dynamic Learning Strategy Framework for AoW2',countries:'Global',budget:88000},
+  {id:'A5P8.4',aow:'AoW5',center:'CIP',hlo:'HLO 5.5.1',activity:'19 learning plans for AoW2 solution tracks',countries:'Global',budget:150000},
+  {id:'A5P9.1',aow:'AoW5',center:'CIP',hlo:'HLO 5.5.2',activity:'FarmerChat AI evaluation — Kenya',countries:'Kenya',budget:75000},
+  {id:'A5P10.1',aow:'AoW5',center:'IFPRI',hlo:'HLO 5.5.2',activity:'A/B test impact evaluation of FarmerChat',countries:'Kenya',budget:230000},
+];
+
+// ========== CHARTS ==========
+let charts = {};
+
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function initOverview() {
+  // AoW bars
+  const max = Math.max(...aowData.map(a=>a.total));
+  document.getElementById('aow-bars-ov').innerHTML = aowData.map((a,i)=>`
+    <div class="bar-group">
+      <div class="bar-label">${a.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(a.total/max*100).toFixed(1)}%;background:${aowColors[i]}"></div></div>
+      <div class="bar-value">${fmt(a.total)}</div>
+    </div>`).join('');
+
+  // Donut
+  destroyChart('donut');
+  const ctx = document.getElementById('donut-ov').getContext('2d');
+  charts['donut'] = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:aowData.map(a=>a.name),datasets:[{data:aowData.map(a=>a.total),backgroundColor:aowColors,borderWidth:2,borderColor:getComputedStyle(document.documentElement).getPropertyValue('--surface')||'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}
+  });
+  document.getElementById('donut-legend').innerHTML = aowData.map((a,i)=>`
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${aowColors[i]};display:inline-block;flex-shrink:0"></span>${a.name}</span>`).join('');
+
+  // Center bar
+  destroyChart('center-bar');
+  const sorted = [...centerData].sort((a,b)=>b.total-a.total);
+  const centerNames = sorted.map(c => String(c.name));
+  const centerTotals = sorted.map(c => c.total);
+  const centerColors = sorted.map((_,i) => aowColors[i % aowColors.length]);
+  const c2 = document.getElementById('center-bar-ov').getContext('2d');
+  charts['center-bar'] = new Chart(c2, {
+    type: 'bar',
+    data: {
+      labels: centerNames,
+      datasets: [{
+        axis: 'y',
+        data: centerTotals,
+        backgroundColor: centerColors,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '  ' + fmt(ctx.raw) } }
+      },
+      scales: {
+        x: { ticks: { callback: v => fmt(v), font: { size: 10 } } },
+        y: { ticks: { font: { size: 12 }, color: 'var(--text)' } }
+      }
+    }
+  });
+}
+
+function initBudget() {
+  // Center cards
+  const grid = document.getElementById('center-cards');
+  grid.innerHTML = centerData.sort((a,b)=>b.total-a.total).map(c=>`
+    <div class="card" style="cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'" onclick="showCenterDetail('${c.name}')">
+      <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">${c.name}</div>
+      <div style="font-size:20px;font-family:var(--fm);color:var(--text);margin-bottom:8px">${fmt(c.total)}</div>
+      ${c.aow.map((v,i)=>v>0?`<div class="bar-group" style="margin-bottom:4px"><div class="bar-label" style="width:36px;font-size:10px">${aowNames[i]}</div><div class="bar-track" style="height:6px"><div class="bar-fill" style="width:${c.total>0?(v/c.total*100).toFixed(0):0}%;background:${aowColors[i]}"></div></div></div>`:'').join('')}
+    </div>`).join('');
+
+  // Stacked chart
+  destroyChart('stacked');
+  const ctx = document.getElementById('stacked-budget').getContext('2d');
+  charts['stacked'] = new Chart(ctx, {
+    type:'bar',
+    data:{labels:aowData.map(a=>a.name),datasets:[
+      {label:'Core',data:aowData.map(a=>a.core),backgroundColor:'#185FA5'},
+      {label:'Partner',data:aowData.map(a=>a.partner),backgroundColor:'#1D9E75'},
+      {label:'MELIA',data:aowData.map(a=>a.melia),backgroundColor:'#BA7517'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,ticks:{callback:v=>fmt(v),font:{size:10}}}}}
+  });
+}
+
+function showCenterDetail(name) {
+  const c = centerData.find(x=>x.name===name);
+  const panel = document.getElementById('center-detail');
+  panel.style.display = 'block';
+  panel.innerHTML = `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-size:14px;font-weight:600">${name} — full breakdown</span>
+      <button onclick="document.getElementById('center-detail').style.display='none'" style="border:none;background:none;cursor:pointer;color:var(--text3);font-size:16px">✕</button>
+    </div>
+    ${c.aow.map((v,i)=>v>0?`<div class="bar-group"><div class="bar-label">${aowNames[i]}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/c.total*100).toFixed(1)}%;background:${aowColors[i]}"></div></div><div class="bar-value">${fmt(v)}</div></div>`:'').join('')}
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:12px;font-weight:500"><span>Total</span><span>${fmt(c.total)}</span></div>
+  </div>`;
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function initGantt() {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const todayMonth = 3; // April = index 3
+  const grid = document.getElementById('gantt-grid');
+  const aowSections = [0,3,6,10,13,16]; // which row indices start new AoW sections
+  const aowSectionNames = ['AoW0 — Programme Management','AoW1 — Demand & Priorities','AoW2 — Climate & Market','AoW3 — Enabling Environments','AoW4 — Finance & Investment','AoW5 — Scaling Science'];
+
+  let html = `<div></div>${months.map((m,i)=>`<div class="gantt-hdr-cell" style="${i===todayMonth?'color:var(--c0);font-weight:600':''}">${m}</div>`).join('')}`;
+
+  let sectionIdx = 0;
+  ganttRows.forEach((r,ri) => {
+    if(aowSections.includes(ri)) {
+      html += `<div class="gantt-section" style="color:${aowColors[sectionIdx]}">${aowSectionNames[sectionIdx]}</div>`;
+      sectionIdx++;
+    }
+    const[lbl,ai,s,e] = r;
+    html += `<div class="gantt-row-label" title="${lbl}">${lbl}</div>`;
+    months.forEach((_,m) => {
+      const inBar = m >= s && m <= e;
+      const isToday = m === todayMonth;
+      if(isToday && inBar) html += `<div style="height:18px;border-radius:3px;background:${aowColors[ai]};opacity:.7;border-left:2px solid var(--c0)"></div>`;
+      else if(isToday) html += `<div class="gantt-cell gantt-today"></div>`;
+      else if(inBar) html += `<div style="height:18px;border-radius:3px;background:${aowColors[ai]}"></div>`;
+      else html += `<div class="gantt-cell"></div>`;
+    });
+  });
+  grid.innerHTML = html;
+
+  // Milestones
+  document.getElementById('milestones-list').innerHTML = milestones.map(m=>`
+    <div class="milestone-item">
+      <div class="milestone-month">${m.mon}</div>
+      <div class="milestone-text">${m.text}</div>
+      <div class="milestone-aow" style="color:${m.ci>=0?aowColors[m.ci]:'var(--text3)'}">${m.aow}</div>
+    </div>`).join('');
+
+  // Phase chart
+  destroyChart('phase');
+  const ctx = document.getElementById('phase-chart').getContext('2d');
+  charts['phase'] = new Chart(ctx, {
+    type:'bar',
+    data:{labels:['Q1','Q2','Q3','Q4'],datasets:[
+      {label:'AoW0',data:[550,500,480,458],backgroundColor:'#185FA5'},
+      {label:'AoW1',data:[400,470,500,494],backgroundColor:'#1D9E75'},
+      {label:'AoW2',data:[1800,1900,2100,1727],backgroundColor:'#BA7517'},
+      {label:'AoW3',data:[600,650,700,580],backgroundColor:'#A32D2D'},
+      {label:'AoW4',data:[900,950,1000,928],backgroundColor:'#534AB7'},
+      {label:'AoW5',data:[550,550,580,524],backgroundColor:'#3B6D11'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,ticks:{callback:v=>'$'+v+'K',font:{size:10}}}}}
+  });
+}
+
+function initMELIA() {
+  const tbody = document.querySelector('#melia-table tbody');
+  const bClass = ['b0','b1','b2','b3','b4','b5'];
+  tbody.innerHTML = meliaPoDs.map(p=>`
+    <tr>
+      <td><span class="badge b0">${p.id}</span></td>
+      <td><span style="font-weight:500">${p.center}</span></td>
+      <td>${p.activity}</td>
+      <td style="font-family:var(--fm);white-space:nowrap">${p.target}</td>
+      <td style="color:var(--text2);white-space:nowrap">${p.countries}</td>
+      <td style="font-family:var(--fm);white-space:nowrap">${fmt(p.budget)}</td>
+    </tr>`).join('');
+
+  document.getElementById('melia-coverage').innerHTML = meliaCoverage.map((c,i)=>`
+    <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;${i===meliaCoverage.length-1?'border-bottom:none':''}">
+      <span style="flex:0 0 40px;font-family:var(--fm);color:${aowColors[i]};font-size:11px;padding-top:1px">${c.aow}</span>
+      <span style="flex:0 0 14px;color:${c.has?'var(--c1)':'var(--text3)'}">${c.has?'✓':'—'}</span>
+      <span style="flex:1;color:${c.has?'var(--text)':'var(--text2)'}">${c.note}</span>
+    </div>`).join('');
+}
+
+let activeKPI = 0;
+function initKPI() {
+  const tabs = document.getElementById('kpi-tabs');
+  tabs.innerHTML = aowKPIs.map((a,i)=>`
+    <button class="tab-btn${i===0?' active':''}" onclick="selectKPI(${i},this)" style="${i===0?`background:${aowColors[a.ci]}22;color:${aowColors[a.ci]};border-color:${aowColors[a.ci]}44`:''}">
+      ${a.name}
+    </button>`).join('');
+  renderKPI(0);
+}
+
+function selectKPI(idx,btn) {
+  document.querySelectorAll('.tab-btn').forEach((t,i)=>{
+    t.classList.toggle('active',i===idx);
+    t.style.background=i===idx?aowColors[aowKPIs[idx].ci]+'22':'';
+    t.style.color=i===idx?aowColors[aowKPIs[idx].ci]:'';
+    t.style.borderColor=i===idx?aowColors[aowKPIs[idx].ci]+'44':'';
+  });
+  renderKPI(idx);
+}
+
+function renderKPI(idx) {
+  const a = aowKPIs[idx];
+  const typeColor = {'Outcome':'b2','Output':'b0','Process':'b1'};
+  document.getElementById('kpi-content').innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:15px;font-weight:600;color:${aowColors[a.ci]}">${a.name} — ${aowData[a.ci].label}</span>
+        <span class="badge b0">${a.iocs.length} indicators</span>
+      </div>
+      ${a.iocs.map(ioc=>`
+        <div class="ioc-item">
+          <div class="ioc-badge"><span class="badge ${typeColor[ioc.type]||'b0'}">${ioc.code}</span></div>
+          <div class="ioc-body">
+            <div class="ioc-title">${ioc.text}</div>
+            <div class="ioc-meta">Target: ${ioc.target} &nbsp;·&nbsp; Type: ${ioc.type}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function initToC() {
+  document.getElementById('outcome-targets').innerHTML = outcomes2030.map(o=>`
+    <div class="progress-row">
+      <div class="progress-header"><span class="progress-lbl">${o.label}</span><span class="progress-val" style="font-family:var(--fm)">${o.val} ${o.unit}</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${Math.round(o.val/o.max*100)}%;background:${o.color}"></div></div>
+    </div>`).join('');
+
+  document.getElementById('ioc-chain').innerHTML = iocChain.map(t=>`
+    <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="flex:0 0 40px;font-family:var(--fm);font-size:11px;color:${aowColors[t.ci]};padding-top:1px">${t.aow}</span>
+      <span style="flex:1;color:var(--text)">${t.text}</span>
+      <span style="flex:0 0 70px;text-align:right;font-family:var(--fm);font-size:11px;color:var(--text3)">${t.oc}</span>
+    </div>`).join('');
+}
+
+let allPoDs = [...podData];
+function initPoDs() {
+  renderPoDs(allPoDs);
+}
+
+function filterPoDs() {
+  const q = document.getElementById('pod-search').value.toLowerCase();
+  const aow = document.getElementById('pod-aow').value;
+  const center = document.getElementById('pod-center').value;
+  const filtered = allPoDs.filter(p =>
+    (!q || [p.id,p.activity,p.countries,p.hlo].join(' ').toLowerCase().includes(q)) &&
+    (!aow || p.aow===aow) &&
+    (!center || p.center===center)
+  );
+  renderPoDs(filtered);
+}
+
+function renderPoDs(data) {
+  const aowCI = {AoW0:0,AoW1:1,AoW2:2,AoW3:3,AoW4:4,AoW5:5};
+  document.getElementById('pod-tbody').innerHTML = data.map(p=>`
+    <tr>
+      <td><span class="badge b${aowCI[p.aow]||0}">${p.id}</span></td>
+      <td><span style="font-weight:500;color:${aowColors[aowCI[p.aow]||0]}">${p.aow}</span></td>
+      <td>${p.center}</td>
+      <td style="color:var(--text2);font-size:11px">${p.hlo}</td>
+      <td>${p.activity}</td>
+      <td style="color:var(--text2);font-size:11px">${p.countries}</td>
+      <td style="font-family:var(--fm);white-space:nowrap">${fmt(p.budget)}</td>
+    </tr>`).join('');
+  document.getElementById('pod-count').textContent = `Showing ${data.length} of ${allPoDs.length} PoDs`;
+}
+
+// ========== NAVIGATION ==========
+const pageInits = {overview:initOverview, budget:initBudget, gantt:initGantt, melia:initMELIA, kpi:initKPI, toc:initToC, pods:initPoDs};
+const initialized = {};
+
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(!initialized[id]) { pageInits[id](); initialized[id]=true; }
+}
+
+// ========== THEME ==========
+let dark = false;
+function toggleTheme() {
+  dark = !dark;
+  document.documentElement.setAttribute('data-theme', dark?'dark':'');
+  document.getElementById('theme-icon').textContent = dark?'☾':'☀';
+}
+
+// ========== INIT ==========
+initOverview();
+initialized['overview'] = true;
+</script>
+</body>
+</html>
